@@ -70,7 +70,12 @@ it manages its own venv lifecycle.
 - [x] Step 2: real-network Finna smoke test — `tests/e2e/test_finna_live.py`
       (marker `e2e_live`, excluded from default run via `addopts` in
       `pyproject.toml`). Found a real bug on first run — see bug report below.
-- [ ] Step 3: fresh-install packaging check
+- [x] Step 3: fresh-install packaging check — `tests/e2e/check_fresh_install.py`
+      (standalone script, not pytest-collected — run manually or as a CI
+      step: `python tests/e2e/check_fresh_install.py`). Ran it: creates a
+      throwaway venv, does a real non-editable `pip install .`, and runs
+      the installed `app-cli` console-script entry point end to end.
+      Result: PASS — packaging and entry-point wiring are correct.
 
 ## Bug found by Step 2 (reported, not fixed — outside tester scope)
 
