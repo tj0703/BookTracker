@@ -1,0 +1,83 @@
+from datetime import date
+
+import pytest
+
+from app_cli import books, finna, recommend
+
+
+def add_rated(title, rating):
+    books.add_book(
+        books.BookEntry(
+            title=title,
+            date_completed=date(2026, 1, 1),
+            review="Loved it." if rating and rating >= 4 else "It was okay.",
+            review_date=date(2026, 1, 2),
+            rating=rating,
+        )
+    )
+
+
+def test_recommend_locked_below_threshold():
+    add_rated("Book One", 5)
+    with pytest.raises(recommend.NotEnoughDataError) as exc_info:
+        recommend.get_recommendations()
+    assert exc_info.value.rated == 1
+    assert exc_info.value.threshold == books.RATING_THRESHOLD
+
+
+def test_recommend_uses_liked_books_and_excludes_tracked(monkeypatch):
+    for i in range(books.RATING_THRESHOLD):
+        add_rated(f"Book {i}", 5 if i == 0 else 3)
+
+    def fake_resolve_title(title):
+        if title == "Book 0":
+            return {
+                "finna_id": "1",
+                "subjects": ["science fiction"],
+                "community_rating": None,
+                "fetched_at": "2026-01-01T00:00:00+00:00",
+            }
+        return None
+
+    captured = {}
+
+    def fake_search_by_subjects(subjects, exclude_titles, limit):
+        captured["subjects"] = subjects
+        captured["exclude_titles"] = exclude_titles
+        return [{"title": "Recommended Book", "author": "Someone", "community_rating": None}]
+
+    monkeypatch.setattr(finna, "resolve_title", fake_resolve_title)
+    monkeypatch.setattr(finna, "search_by_subjects", fake_search_by_subjects)
+
+    results = recommend.get_recommendations()
+    assert results == [{"title": "Recommended Book", "author": "Someone", "community_rating": None}]
+    assert captured["subjects"] == ["science fiction"]
+    assert "book 0" in captured["exclude_titles"]
+
+
+def test_recommend_skips_book_whose_lookup_fails(monkeypatch):
+    for i in range(books.RATING_THRESHOLD):
+        add_rated(f"Book {i}", 5)
+
+    def fake_resolve_title(title):
+        if title == "Book 0":
+            raise finna.FinnaLookupError("network down")
+        return {
+            "finna_id": title,
+            "subjects": ["science fiction"],
+            "community_rating": None,
+            "fetched_at": "2026-01-01T00:00:00+00:00",
+        }
+
+    captured = {}
+
+    def fake_search_by_subjects(subjects, exclude_titles, limit):
+        captured["subjects"] = subjects
+        return [{"title": "Recommended Book", "author": "Someone", "community_rating": None}]
+
+    monkeypatch.setattr(finna, "resolve_title", fake_resolve_title)
+    monkeypatch.setattr(finna, "search_by_subjects", fake_search_by_subjects)
+
+    results = recommend.get_recommendations()
+    assert results == [{"title": "Recommended Book", "author": "Someone", "community_rating": None}]
+    assert captured["subjects"] == ["science fiction"]
