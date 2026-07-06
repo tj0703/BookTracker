@@ -23,3 +23,9 @@ app-cli = "app_cli.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/app_cli"]
+
+[tool.pytest.ini_options]
+markers = [
+    "e2e_live: hits the real Finna API; excluded by default, run explicitly with -m e2e_live",
+]
+addopts = '-m "not e2e_live"'

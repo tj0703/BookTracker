@@ -120,6 +120,33 @@ def test_search_by_subjects_excludes_tracked_and_ranks_by_rating(monkeypatch):
     assert titles == ["New Book High", "New Book Low"]
 
 
+def test_search_by_subjects_handles_authors_primary_as_empty_list(monkeypatch):
+    # Finna returns authors.primary as [] (not {}) for records with no
+    # primary author, e.g. "Chuggington : Klik-klok" under a real subject
+    # facet query — confirmed against the live API.
+    monkeypatch.setattr(
+        finna.requests,
+        "get",
+        lambda url, params=None, timeout=None: FakeResponse(
+            {
+                "records": [
+                    {
+                        "id": "1",
+                        "title": "Authorless Book",
+                        "authors": {"primary": []},
+                        "rating": {"count": 0, "average": 0},
+                    }
+                ]
+            }
+        ),
+    )
+
+    results = finna.search_by_subjects(["some subject"], exclude_titles=set(), limit=5)
+    assert results == [
+        {"title": "Authorless Book", "author": None, "community_rating": None}
+    ]
+
+
 def test_search_by_subjects_skips_failing_subject_and_keeps_others(monkeypatch):
     def fake_get(url, params=None, timeout=None):
         if "broken subject" in params["filter[]"]:

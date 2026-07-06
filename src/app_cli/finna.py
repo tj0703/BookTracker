@@ -24,6 +24,16 @@ def _community_rating(record: dict) -> dict | None:
     return {"count": rating["count"], "average": rating["average"]}
 
 
+def _primary_authors(record: dict) -> list[str]:
+    """Finna returns authors.primary as a dict (name -> role) when there are
+    primary authors, but as an empty list when there are none — handle both.
+    """
+    primary = (record.get("authors") or {}).get("primary") or {}
+    if isinstance(primary, dict):
+        return list(primary.keys())
+    return list(primary)
+
+
 def resolve_title(title: str) -> dict | None:
     """Resolve a book title to Finna metadata (subjects, community rating), using
     and updating the local cache. Returns None if Finna has no match for the title.
@@ -98,7 +108,7 @@ def search_by_subjects(subjects: list[str], exclude_titles: set[str], limit: int
                 continue
             if title in candidates:
                 continue
-            primary_authors = list((record.get("authors") or {}).get("primary", {}).keys())
+            primary_authors = _primary_authors(record)
             candidates[title] = {
                 "title": title,
                 "author": primary_authors[0] if primary_authors else None,

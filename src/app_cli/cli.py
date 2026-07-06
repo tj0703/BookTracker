@@ -1,9 +1,20 @@
+import sys
+
 import click
 
 from app_cli import __version__
 from app_cli import books
 from app_cli import finna
 from app_cli import recommend
+
+# Finna's catalog includes non-Latin titles/authors (Cyrillic, CJK, etc.).
+# The default console encoding on Windows (e.g. cp1252) can't represent
+# those and raises UnicodeEncodeError on print. Force UTF-8 with a
+# replacement fallback so the CLI never crashes on output, regardless of
+# the terminal's codepage.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 @click.group()
