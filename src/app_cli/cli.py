@@ -35,22 +35,30 @@ def book():
     """Track books you've read and get recommendations."""
 
 
+# Only unambiguous formats (4-digit year) are accepted. 2-digit-year inputs
+# like "26/07/06" are genuinely ambiguous (DD/MM/YY vs YY/MM/DD) and a wrong
+# guess would silently store the wrong date, so they're rejected rather than
+# guessed at.
+DATE_FORMATS = ["%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d"]
+DATE_FORMATS_HELP = "YYYY-MM-DD, DD/MM/YYYY, or YYYY/MM/DD"
+
+
 @book.command("add")
 @click.option("--title", required=True, help="Book title.")
 @click.option(
     "--completed",
     "date_completed",
     required=True,
-    type=click.DateTime(formats=["%Y-%m-%d"]),
-    help="Date reading was completed (YYYY-MM-DD).",
+    type=click.DateTime(formats=DATE_FORMATS),
+    help=f"Date reading was completed ({DATE_FORMATS_HELP}).",
 )
 @click.option("--review", required=True, help="Your review of the book.")
 @click.option(
     "--review-date",
     "review_date",
     required=True,
-    type=click.DateTime(formats=["%Y-%m-%d"]),
-    help="Date the review was written (YYYY-MM-DD).",
+    type=click.DateTime(formats=DATE_FORMATS),
+    help=f"Date the review was written ({DATE_FORMATS_HELP}).",
 )
 @click.option(
     "--rating",

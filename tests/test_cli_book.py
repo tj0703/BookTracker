@@ -35,6 +35,52 @@ def test_book_add_and_list():
     assert "rating: 5/5" in result.output
 
 
+def test_book_add_accepts_alternate_unambiguous_date_formats():
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "book",
+            "add",
+            "--title",
+            "Dune",
+            "--completed",
+            "26/07/2026",
+            "--review",
+            "Loved it.",
+            "--review-date",
+            "2026/07/27",
+        ],
+    )
+    assert result.exit_code == 0
+
+    result = runner.invoke(main, ["book", "list"])
+    assert "completed 2026-07-26" in result.output
+
+
+def test_book_add_rejects_ambiguous_two_digit_year_date():
+    # "26/07/06" could mean DD/MM/YY (26 Jul 2006) or YY/MM/DD (6 Jul 2026) —
+    # ambiguous, so it must be rejected rather than silently guessed at.
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "book",
+            "add",
+            "--title",
+            "Dune",
+            "--completed",
+            "26/07/06",
+            "--review",
+            "Loved it.",
+            "--review-date",
+            "2026-01-02",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "does not match the formats" in result.output
+
+
 def test_book_add_rejects_bad_rating():
     runner = CliRunner()
     result = runner.invoke(
