@@ -72,6 +72,42 @@ app-cli book recommend
 # Some Book - Some Author | Finna rating: 88/100 (4 rating(s))
 ```
 
+### `app-cli book search title <TITLE>`
+
+Search Finna's catalog by title. Title search is often ambiguous (many
+unrelated books share a title), so every matching candidate is shown, not
+just one guess. Each result includes year, format, Finna's community
+rating, and — when known — which library/branch in Finland holds it.
+
+| Option | Required | Description |
+|---|---|---|
+| `--limit` | no | Max results to show. Default `10`. |
+
+```bash
+app-cli book search title "Foundation" --limit 2
+# Foundation / Foundation and empire ; Second foundation - Asimov, Isaac | 2010 | Kirja | Finna rating: no rating available | Available: Kristiinankaupunki, Kristiinankaupungin kirjasto
+# Foundation ; Foundation and empire ; Second foundation - Asimov, Isaac | 2010 | Kirja | Finna rating: 80/100 (2 rating(s)) | Available: Hanko, Hangon kaupunginkirjasto
+```
+
+### `app-cli book search author <AUTHOR>`
+
+List books by a given author, in the same format as `book search title`.
+
+| Option | Required | Description |
+|---|---|---|
+| `--limit` | no | Max results to show. Default `10`. |
+
+```bash
+app-cli book search author "Isaac Asimov" --limit 2
+# Konec vecnosti : Roman - Asimov, Isaac | 2000 | Kirja | Finna rating: no rating available | Available: Kesälahti, Kiteen kirjasto
+# Sami bogi ; Kamesek v nebe ; Zvjozdy kak pyl ; Kosmitseskije tetsenija - Asimov, Isaac | 1999 | Kirja | Finna rating: no rating available | Available: Helsinki, Rikhardinkatu
+```
+
+Note: results are shown as Finna returns them, including Finnish-language
+titles/subjects — no translation layer is applied. The `Available:` field
+is omitted entirely when Finna has no location data for a record (e.g.
+online-only resources).
+
 ## Development
 
 ```bash
