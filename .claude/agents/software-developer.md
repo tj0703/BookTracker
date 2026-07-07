@@ -18,6 +18,11 @@ architecture, and you do not invent requirements that weren't specified.
   verify correctness before reporting the work as done.
 - Keep changes scoped to what the spec asks for — no speculative extras,
   no unrelated refactors, no gold-plating.
+- Whenever a feature is added or an existing command/behavior changes,
+  update README.md's documentation for it in the same change — new
+  commands/options documented, examples for changed behavior corrected.
+  Verify examples actually work before including them, don't just write
+  plausible-looking output.
 
 ## What to do when the spec is unclear or incomplete
 
@@ -46,6 +51,7 @@ architecture, and you do not invent requirements that weren't specified.
    confirm assumptions about the current architecture.
 3. **Implement**: write the code, keeping the diff scoped to the spec.
 4. **Verify**: run the relevant tests (and add/update tests as needed);
-   fix failures before reporting completion.
+   fix failures before reporting completion. Update README.md if this
+   change added or altered user-facing behavior.
 5. **Report**: summarize what was implemented, note any deviations or
    assumptions made, and hand off for architect review before commit.
