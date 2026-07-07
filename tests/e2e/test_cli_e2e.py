@@ -40,6 +40,27 @@ def test_help_commands_do_not_error(tmp_path):
     result = run_cli(["book", "--help"], tmp_path)
     assert result.returncode == 0
 
+    result = run_cli(["book", "search", "--help"], tmp_path)
+    assert result.returncode == 0
+
+    result = run_cli(["book", "search", "title", "--help"], tmp_path)
+    assert result.returncode == 0
+
+    result = run_cli(["book", "search", "author", "--help"], tmp_path)
+    assert result.returncode == 0
+
+
+def test_search_title_missing_argument_exits_cleanly(tmp_path):
+    result = run_cli(["book", "search", "title"], tmp_path)
+    assert result.returncode != 0
+    assert "Traceback" not in result.stderr
+
+
+def test_search_author_missing_argument_exits_cleanly(tmp_path):
+    result = run_cli(["book", "search", "author"], tmp_path)
+    assert result.returncode != 0
+    assert "Traceback" not in result.stderr
+
 
 def test_add_persists_across_separate_processes(tmp_path):
     add_result = add_book(tmp_path, "Dune", rating=5)

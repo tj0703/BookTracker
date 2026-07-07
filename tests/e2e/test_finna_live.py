@@ -31,3 +31,46 @@ def test_search_by_subjects_against_real_finna_api():
         assert "title" in candidate
         assert "author" in candidate
         assert "community_rating" in candidate
+
+
+def test_search_by_title_against_real_finna_api():
+    results = finna.search_by_title("Harry Potter", limit=5)
+
+    assert isinstance(results, list)
+    assert len(results) > 0, "expected real matches from Finna for a well-known title"
+    for result in results:
+        assert set(result) == {
+            "title",
+            "author",
+            "year",
+            "format",
+            "community_rating",
+            "locations",
+        }
+        assert isinstance(result["locations"], list)
+        assert len(result["locations"]) <= finna.MAX_LOCATIONS
+        assert result["community_rating"] is None or set(result["community_rating"]) == {
+            "count",
+            "average",
+        }
+
+
+def test_search_by_author_against_real_finna_api():
+    results = finna.search_by_author("Tove Jansson", limit=5)
+
+    assert isinstance(results, list)
+    assert len(results) > 0, "expected real matches from Finna for a well-known author"
+    for result in results:
+        assert set(result) == {
+            "title",
+            "author",
+            "year",
+            "format",
+            "community_rating",
+            "locations",
+        }
+
+
+def test_search_by_title_no_match_returns_empty_list_against_real_api():
+    results = finna.search_by_title("asdkjfhalskdjfhalskdjfhqwerty", limit=5)
+    assert results == []

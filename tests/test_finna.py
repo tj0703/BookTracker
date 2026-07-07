@@ -171,3 +171,118 @@ def test_search_by_subjects_skips_failing_subject_and_keeps_others(monkeypatch):
     )
     titles = [r["title"] for r in results]
     assert titles == ["Working Book"]
+
+
+def test_summarize_buildings_keeps_city_and_branch_drops_network_and_shelf():
+    buildings = [
+        {"value": "0/Helmet/", "translated": "Helmet-kirjastot"},
+        {"value": "1/Helmet/h/", "translated": "Helsinki"},
+        {"value": "2/Helmet/h/h01l/", "translated": "Pasila lapset"},
+        {"value": "3/Helmet/h/h01l/2/", "translated": "2"},
+    ]
+    assert finna._summarize_buildings(buildings) == ["Helsinki", "Pasila lapset"]
+
+
+def test_summarize_buildings_caps_at_max_locations():
+    buildings = [
+        {"value": f"2/Net/{i}/", "translated": f"Branch {i}"} for i in range(10)
+    ]
+    result = finna._summarize_buildings(buildings)
+    assert len(result) == finna.MAX_LOCATIONS
+
+
+def test_summarize_buildings_handles_empty_and_malformed_entries():
+    assert finna._summarize_buildings([]) == []
+    assert finna._summarize_buildings([{"value": "", "translated": "x"}]) == []
+
+
+def _title_search_record(**overrides):
+    record = {
+        "id": "1",
+        "title": "Foundation",
+        "authors": {"primary": {"Asimov, Isaac": {"role": ["kirjoittaja"]}}},
+        "year": "1951",
+        "formats": [{"value": "0/Book/", "translated": "Kirja"}],
+        "rating": {"count": 12, "average": 88},
+        "buildings": [
+            {"value": "0/Helmet/", "translated": "Helmet-kirjastot"},
+            {"value": "1/Helmet/h/", "translated": "Helsinki"},
+            {"value": "2/Helmet/h/h01l/", "translated": "Pasila lapset"},
+        ],
+    }
+    record.update(overrides)
+    return record
+
+
+def test_search_by_title_returns_full_result_shape(monkeypatch):
+    captured = {}
+
+    def fake_get(url, params=None, timeout=None):
+        captured["params"] = params
+        return FakeResponse({"records": [_title_search_record()]})
+
+    monkeypatch.setattr(finna.requests, "get", fake_get)
+
+    results = finna.search_by_title("Foundation", limit=10)
+    assert results == [
+        {
+            "title": "Foundation",
+            "author": "Asimov, Isaac",
+            "year": "1951",
+            "format": "Kirja",
+            "community_rating": {"count": 12, "average": 88},
+            "locations": ["Helsinki", "Pasila lapset"],
+        }
+    ]
+    assert captured["params"]["type"] == "Title"
+    assert captured["params"]["lookfor"] == "Foundation"
+
+
+def test_search_by_author_uses_author_search_type(monkeypatch):
+    captured = {}
+
+    def fake_get(url, params=None, timeout=None):
+        captured["params"] = params
+        return FakeResponse({"records": [_title_search_record()]})
+
+    monkeypatch.setattr(finna.requests, "get", fake_get)
+
+    results = finna.search_by_author("Isaac Asimov", limit=10)
+    assert results[0]["author"] == "Asimov, Isaac"
+    assert captured["params"]["type"] == "Author"
+    assert captured["params"]["lookfor"] == "Isaac Asimov"
+
+
+def test_search_by_title_returns_empty_list_when_no_matches(monkeypatch):
+    monkeypatch.setattr(
+        finna.requests, "get", lambda url, params=None, timeout=None: FakeResponse({"records": []})
+    )
+    assert finna.search_by_title("Some Obscure Title", limit=10) == []
+
+
+def test_search_by_title_raises_on_request_error(monkeypatch):
+    def fake_get(url, params=None, timeout=None):
+        raise finna.requests.ConnectionError("network down")
+
+    monkeypatch.setattr(finna.requests, "get", fake_get)
+    with pytest.raises(finna.FinnaLookupError):
+        finna.search_by_title("Foundation", limit=10)
+
+
+def test_search_by_title_handles_missing_year_and_format(monkeypatch):
+    record = _title_search_record(year=None, formats=[])
+    monkeypatch.setattr(
+        finna.requests, "get", lambda url, params=None, timeout=None: FakeResponse({"records": [record]})
+    )
+    result = finna.search_by_title("Foundation", limit=10)[0]
+    assert result["year"] is None
+    assert result["format"] is None
+
+
+def test_search_by_title_handles_authors_primary_as_empty_list(monkeypatch):
+    record = _title_search_record(authors={"primary": []})
+    monkeypatch.setattr(
+        finna.requests, "get", lambda url, params=None, timeout=None: FakeResponse({"records": [record]})
+    )
+    result = finna.search_by_title("Foundation", limit=10)[0]
+    assert result["author"] is None

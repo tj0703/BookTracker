@@ -114,3 +114,22 @@ a direct re-run of the exact query that originally crashed
 record with no primary author).
 
 Executed one step at a time; this file is updated as each step lands.
+
+## Coverage added for `book search title/author`
+
+- **Zero-network wiring checks** (`tests/e2e/test_cli_e2e.py`): `--help`
+  output for `book search`, `book search title`, `book search author`, plus
+  missing-argument exit behavior for both subcommands — all via real
+  subprocess, no network required, so these stay in the fast default suite.
+- **Live-network coverage** (`tests/e2e/test_finna_live.py`,
+  `e2e_live`-marked): `search_by_title`/`search_by_author` against the real
+  API, asserting the full result shape (`title, author, year, format,
+  community_rating, locations`), the `locations` cap (`MAX_LOCATIONS`), and
+  a no-match query returning `[]`. Ran against the real API: 5/5 pass.
+- **Not added**: a subprocess-level (real console-script) live test for
+  `book search`. It would need real network like the `finna.py`-level live
+  tests above, but adds no coverage beyond what the zero-network wiring
+  checks (Click plumbing) and the `finna.py`-level live tests (API
+  contract) already cover separately — would only be testing that those
+  two already-verified layers compose, which is a low-value, network-flaky
+  addition. Flagging the omission explicitly rather than silently skipping it.

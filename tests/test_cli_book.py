@@ -149,3 +149,80 @@ def test_book_recommend_shows_candidates(monkeypatch):
     assert result.exit_code == 0
     assert "New Book - Some Author" in result.output
     assert "88/100 (4 rating(s))" in result.output
+
+
+def test_book_search_title_shows_results(monkeypatch):
+    monkeypatch.setattr(
+        finna,
+        "search_by_title",
+        lambda title, limit: [
+            {
+                "title": "Foundation",
+                "author": "Asimov, Isaac",
+                "year": "1951",
+                "format": "Kirja",
+                "community_rating": {"count": 12, "average": 88},
+                "locations": ["Helsinki", "Pasila lapset"],
+            }
+        ],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["book", "search", "title", "Foundation"])
+    assert result.exit_code == 0
+    assert "Foundation - Asimov, Isaac" in result.output
+    assert "1951" in result.output
+    assert "Kirja" in result.output
+    assert "88/100 (12 rating(s))" in result.output
+    assert "Available: Helsinki, Pasila lapset" in result.output
+
+
+def test_book_search_title_no_results(monkeypatch):
+    monkeypatch.setattr(finna, "search_by_title", lambda title, limit: [])
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["book", "search", "title", "Nonexistent"])
+    assert result.exit_code == 0
+    assert "No matches found for 'Nonexistent'." in result.output
+
+
+def test_book_search_title_reports_lookup_error(monkeypatch):
+    def fake_search(title, limit):
+        raise finna.FinnaLookupError("network down")
+
+    monkeypatch.setattr(finna, "search_by_title", fake_search)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["book", "search", "title", "Foundation"])
+    assert result.exit_code == 0
+    assert "Could not search Finna" in result.output
+
+
+def test_book_search_author_uses_search_by_author(monkeypatch):
+    captured = {}
+
+    def fake_search(author, limit):
+        captured["author"] = author
+        captured["limit"] = limit
+        return [
+            {
+                "title": "Foundation",
+                "author": "Asimov, Isaac",
+                "year": "1951",
+                "format": "Kirja",
+                "community_rating": None,
+                "locations": [],
+            }
+        ]
+
+    monkeypatch.setattr(finna, "search_by_author", fake_search)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["book", "search", "author", "Isaac Asimov", "--limit", "3"]
+    )
+    assert result.exit_code == 0
+    assert captured == {"author": "Isaac Asimov", "limit": 3}
+    assert "Foundation - Asimov, Isaac" in result.output
+    assert "no rating available" in result.output
+    assert "Available:" not in result.output

@@ -135,5 +135,73 @@ def book_recommend():
         )
 
 
+DEFAULT_SEARCH_LIMIT = 10
+
+
+def _format_search_result(result: dict) -> str:
+    author = result["author"] or "Unknown author"
+    parts = [f"{result['title']} - {author}"]
+    if result["year"]:
+        parts.append(result["year"])
+    if result["format"]:
+        parts.append(result["format"])
+
+    community = result["community_rating"]
+    community_str = (
+        f"{community['average']}/100 ({community['count']} rating(s))"
+        if community
+        else "no rating available"
+    )
+    parts.append(f"Finna rating: {community_str}")
+
+    line = " | ".join(parts)
+    if result["locations"]:
+        line += f" | Available: {', '.join(result['locations'])}"
+    return line
+
+
+@book.group("search")
+def book_search():
+    """Search Finna's catalog by title or author."""
+
+
+@book_search.command("title")
+@click.argument("title")
+@click.option("--limit", type=int, default=DEFAULT_SEARCH_LIMIT, help="Max results to show.")
+def book_search_title(title, limit):
+    """Search for books by title."""
+    try:
+        results = finna.search_by_title(title, limit)
+    except finna.FinnaLookupError as exc:
+        click.echo(f"Could not search Finna: {exc}", err=True)
+        return
+
+    if not results:
+        click.echo(f"No matches found for '{title}'.")
+        return
+
+    for result in results:
+        click.echo(_format_search_result(result))
+
+
+@book_search.command("author")
+@click.argument("author")
+@click.option("--limit", type=int, default=DEFAULT_SEARCH_LIMIT, help="Max results to show.")
+def book_search_author(author, limit):
+    """List books by an author."""
+    try:
+        results = finna.search_by_author(author, limit)
+    except finna.FinnaLookupError as exc:
+        click.echo(f"Could not search Finna: {exc}", err=True)
+        return
+
+    if not results:
+        click.echo(f"No matches found for '{author}'.")
+        return
+
+    for result in results:
+        click.echo(_format_search_result(result))
+
+
 if __name__ == "__main__":
     main()
