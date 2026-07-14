@@ -151,6 +151,91 @@ def test_book_recommend_shows_candidates(monkeypatch):
     assert "88/100 (4 rating(s))" in result.output
 
 
+def test_book_recommend_shows_candidates_for_realistic_dataset(monkeypatch):
+    # A realistic 10-book library (varied ratings 1-5, real titles), rather
+    # than the generic "Book 0".."Book 9"/single-subject fixture used by
+    # test_book_recommend_shows_candidates above. Several liked books share
+    # overlapping Finna subjects so the weighting logic in
+    # recommend.get_recommendations() has real aggregation to do before
+    # `book recommend` prints the resulting candidates.
+    realistic_books = [
+        ("Dune", 5),
+        ("Foundation", 5),
+        ("The Left Hand of Darkness", 4),
+        ("Neuromancer", 4),
+        ("The Hobbit", 5),
+        ("Pride and Prejudice", 3),
+        ("The Da Vinci Code", 2),
+        ("1984", 4),
+        ("Brave New World", 3),
+        ("The Great Gatsby", 1),
+    ]
+    for title, rating in realistic_books:
+        books.add_book(
+            books.BookEntry(
+                title=title,
+                date_completed=date(2026, 1, 1),
+                review="Loved it." if rating >= 4 else "It was okay.",
+                review_date=date(2026, 1, 2),
+                rating=rating,
+            )
+        )
+
+    subjects_by_liked_title = {
+        "Dune": ["science fiction", "desert planets", "politics"],
+        "Foundation": ["science fiction", "space opera", "politics"],
+        "The Left Hand of Darkness": ["science fiction", "gender", "anthropology"],
+        "Neuromancer": ["science fiction", "cyberpunk", "artificial intelligence"],
+        "The Hobbit": ["fantasy", "adventure", "dragons"],
+        "1984": ["science fiction", "dystopia", "politics"],
+    }
+
+    def fake_resolve_title(title):
+        subjects = subjects_by_liked_title[title]
+        return {
+            "finna_id": title,
+            "subjects": subjects,
+            "community_rating": None,
+            "fetched_at": "2026-01-01T00:00:00+00:00",
+        }
+
+    def fake_search_by_subjects(subjects, exclude_titles, limit):
+        # Confirms the CLI wiring feeds the correctly aggregated top
+        # subjects through to finna.search_by_subjects.
+        assert subjects == [
+            "science fiction",
+            "politics",
+            "desert planets",
+            "space opera",
+            "fantasy",
+        ]
+        assert exclude_titles == {title.lower() for title, _rating in realistic_books}
+        return [
+            {
+                "title": "Hyperion",
+                "author": "Dan Simmons",
+                "community_rating": {"count": 120, "average": 91},
+            },
+            {
+                "title": "The Diamond Age",
+                "author": "Neal Stephenson",
+                "community_rating": None,
+            },
+        ]
+
+    monkeypatch.setattr(finna, "resolve_title", fake_resolve_title)
+    monkeypatch.setattr(finna, "search_by_subjects", fake_search_by_subjects)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["book", "recommend"])
+    assert result.exit_code == 0
+    assert "Hyperion - Dan Simmons | Finna rating: 91/100 (120 rating(s))" in result.output
+    assert (
+        "The Diamond Age - Neal Stephenson | Finna rating: no rating available"
+        in result.output
+    )
+
+
 def test_book_search_title_shows_results(monkeypatch):
     monkeypatch.setattr(
         finna,
